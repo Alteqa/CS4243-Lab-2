@@ -23,7 +23,10 @@ def make_gaussian_kernel(ksize, sigma):
     '''
     
     # YOUR CODE HERE
-
+    kernel = np.zeros((ksize, ksize))
+    for x in range(kernel.shape[0]):
+        for y in range(kernel.shape[1]):
+            kernel[x, y] = np.exp(((x - np.floor(ksize / 2)) ** 2 + (y - np.floor(ksize / 2)) ** 2) / (-2 * sigma ** 2))
     # END
 
     return kernel / kernel.sum()
@@ -132,6 +135,19 @@ def estimate_gradients(original_img, display=True):
     d_angle = None
     
     # YOUR CODE HERE
+
+    Kx = np.array([[ 1,  2,  1],
+          [ 0,  0,  0],
+          [-1, -2, -1]])
+    
+    Ky = np.array([[ 1,  0, -1],
+          [ 2,  0, -2],
+          [ 1,  0, -1]])
+
+    dx = cs4243_filter(original_img, Kx)
+    dy = cs4243_filter(original_img, Ky)
+    d_mag = np.sqrt(dx ** 2 + dy ** 2)
+    d_angle = np.atan2(dy, dx)
     
     '''
     HINT:
@@ -187,25 +203,29 @@ def estimate_gradients(original_img, display=True):
     return d_mag, d_angle
 
 # 3a IMPLEMENT
-def non_maximum_suppression_interpol(d_mag, d_angle, display=True):
-    '''
-    Perform non-maximum suppression on the gradient magnitude matrix with interpolation.
-    :param d_mag: gradient magnitudes matrix
-    :param d_angle: gradient orientation matrix (in radian)
-    :return out: non-maximum suppressed image
-    '''
+# def non_maximum_suppression_interpol(d_mag, d_angle, display=True):
+#     '''
+#     Perform non-maximum suppression on the gradient magnitude matrix with interpolation.
+#     :param d_mag: gradient magnitudes matrix
+#     :param d_angle: gradient orientation matrix (in radian)
+#     :return out: non-maximum suppressed image
+#     '''
 
-    out = np.zeros(d_mag.shape, d_mag.dtype)
-    # Change angles to degrees to improve quality of life
-    d_angle_180 = d_angle * 180/np.pi
+#     out = np.zeros(d_mag.shape, d_mag.dtype)
+#     # Change angles to degrees to improve quality of life
+#     d_angle_180 = d_angle * 180/np.pi
     
-    # YOUR CODE HERE
+#     # YOUR CODE HERE
 
-    # END
-    if display:
-        _ = plt.figure(figsize=(10,10))
-        plt.imshow(out, cmap='gray')
-        plt.title("Suppressed image (with interpolation)")
+#     for x in range(d_mag.shape[0]):
+#         for y in range(d_mag.shape[1]):
+            
+
+#     # END
+#     if display:
+#         _ = plt.figure(figsize=(10,10))
+#         plt.imshow(out, cmap='gray')
+#         plt.title("Suppressed image (with interpolation)")
     
     return out
 
@@ -250,7 +270,41 @@ def non_maximum_suppression(d_mag, d_angle, display=True):
     d_angle_180 = d_angle * 180/np.pi
  
     # YOUR CODE HERE
-
+    d_mag_pad = np.pad(d_angle, pad_width=1, mode='constant')
+    for x in range(d_mag.shape[0]):
+        for y in range(d_mag.shape[1]):
+            multiplier = np.tan(d_angle[x, y])
+            pad_x = x + 1
+            pad_y = y + 1
+            match d_angle[x, y]:
+                case value if (0 < value <= 45) or (-135 <= value < -180):
+                    value_1 = multiplier * (d_mag_pad[pad_x + 1, pad_y + 1] - d_mag_pad[pad_x + 1, pad_y]) + d_mag_pad[pad_x + 1, pad_y]
+                    value_2 = multiplier * (d_mag_pad[pad_x - 1, pad_y - 1] - d_mag_pad[pad_x - 1, pad_y]) + d_mag_pad[pad_x - 1, pad_y]
+                    if value_1 < d_mag[x, y] < value_2:
+                        out[x, y] = 1
+                    else:
+                        out[x, y] = 0
+                case value if (45 < value < 90) or (-90 <= value < -135):
+                    value_1 = multiplier * (d_mag_pad[pad_x, pad_y + 1] - d_mag_pad[pad_x + 1, pad_y + 1]) + d_mag_pad[pad_x + 1, pad_y + 1]
+                    value_2 = multiplier * (d_mag_pad[pad_x, pad_y - 1] - d_mag_pad[pad_x - 1, pad_y - 1]) + d_mag_pad[pad_x - 1, pad_y - 1]
+                    if value_1 < d_mag[x, y] < value_2:
+                        out[x, y] = 1
+                    else:
+                        out[x, y] = 0
+                case value if (90 < value < 135) or (-45 <= value < -90):
+                    value_1 = multiplier * (d_mag_pad[pad_x - 1, pad_y + 1] - d_mag_pad[pad_x, pad_y + 1]) + d_mag_pad[pad_x, pad_y + 1]
+                    value_2 = multiplier * (d_mag_pad[pad_x + 1, pad_y - 1] - d_mag_pad[pad_x, pad_y - 1]) + d_mag_pad[pad_x, pad_y - 1]
+                    if value_1 < d_mag[x, y] < value_2:
+                        out[x, y] = 1
+                    else:
+                        out[x, y] = 0
+                case value if (135 < value < 180) or (0 <= value < -45):
+                    value_1 = multiplier * (d_mag_pad[pad_x - 1, pad_y] - d_mag_pad[pad_x - 1, pad_y + 1]) + d_mag_pad[pad_x - 1, pad_y + 1]
+                    value_2 = multiplier * (d_mag_pad[pad_x + 1, pad_y] - d_mag_pad[pad_x + 1, pad_y - 1]) + d_mag_pad[pad_x + 1, pad_y - 1]
+                    if value_1 < d_mag[x, y] < value_2:
+                        out[x, y] = 1
+                    else:
+                        out[x, y] = 0
     # END
     if display:
         _ = plt.figure(figsize=(10,10))
