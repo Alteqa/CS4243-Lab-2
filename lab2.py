@@ -217,7 +217,6 @@ def non_maximum_suppression_interpol(d_mag, d_angle, display=True):
     
     # YOUR CODE HERE
     d_mag_pad = np.pad(d_angle, pad_width=1, mode='constant')
-    multiplier_arr = np.tan(d_angle)
     for x in range(d_mag.shape[0]):
         for y in range(d_mag.shape[1]):
             pad_x = x + 1
@@ -226,30 +225,56 @@ def non_maximum_suppression_interpol(d_mag, d_angle, display=True):
             d_angle_value = d_angle_180[x, y]
             value_1 = 0
             value_2 = 0
+
+            bottom = d_mag_pad[pad_x + 1, pad_y]
+            bottom_right = d_mag_pad[pad_x + 1, pad_y + 1]
+            right = d_mag_pad[pad_x, pad_y + 1]
+            top_right = d_mag_pad[pad_x - 1, pad_y + 1]
+            top = d_mag_pad[pad_x - 1, pad_y]
+            top_left = d_mag_pad[pad_x - 1, pad_y - 1]
+            left = d_mag_pad[pad_x, pad_y - 1]
+            bottom_left = d_mag_pad[pad_x + 1, pad_y - 1]
+
             if (0 < d_angle_value <= 45):
-                value_1 = np.tan(d_angle[x, y]) * (d_mag_pad[pad_x + 1, pad_y + 1] - d_mag_pad[pad_x + 1, pad_y]) + d_mag_pad[pad_x + 1, pad_y]
-                value_2 = np.tan(d_angle[x, y]) * (d_mag_pad[pad_x - 1, pad_y - 1] - d_mag_pad[pad_x - 1, pad_y]) + d_mag_pad[pad_x - 1, pad_y]
+                multiplier = np.tan(d_angle[x, y])
+
+                value_1 = bottom + multiplier * (bottom_right - bottom)
+                value_2 = top + multiplier * (top_left - top)
             elif (-135 >= d_angle_value > -180):
-                value_1 = np.tan(d_angle[x, y] + np.pi) * (d_mag_pad[pad_x + 1, pad_y + 1] - d_mag_pad[pad_x + 1, pad_y]) + d_mag_pad[pad_x + 1, pad_y]
-                value_2 = np.tan(d_angle[x, y] + np.pi) * (d_mag_pad[pad_x - 1, pad_y - 1] - d_mag_pad[pad_x - 1, pad_y]) + d_mag_pad[pad_x - 1, pad_y]
+                multiplier = np.tan(d_angle[x, y] + np.pi)
+                
+                value_1 = bottom + multiplier * (bottom_right - bottom)
+                value_2 = top + multiplier * (top_left - top)
             elif (45 < d_angle_value <= 90):
-                value_1 = np.tan((np.pi / 2) - d_angle[x, y]) * (d_mag_pad[pad_x + 1, pad_y + 1]) - d_mag_pad[pad_x, pad_y + 1] + d_mag_pad[pad_x, pad_y + 1]
-                value_2 = np.tan((np.pi / 2) - d_angle[x, y]) * (d_mag_pad[pad_x - 1, pad_y - 1]) - d_mag_pad[pad_x, pad_y - 1] + d_mag_pad[pad_x, pad_y - 1]
+                multiplier = np.tan((np.pi / 2) - d_angle[x, y])
+                
+                value_1 = right + multiplier * (bottom_right - right)
+                value_2 = left + multiplier * (top_left - left)
             elif (-90 >= d_angle_value > -135):
-                value_1 = np.tan((np.pi / 2) - (d_angle[x, y] + np.pi)) * (d_mag_pad[pad_x, pad_y + 1] - d_mag_pad[pad_x + 1, pad_y + 1]) + d_mag_pad[pad_x + 1, pad_y + 1]
-                value_2 = np.tan((np.pi / 2) - (d_angle[x, y] + np.pi)) * (d_mag_pad[pad_x, pad_y - 1] - d_mag_pad[pad_x - 1, pad_y - 1]) + d_mag_pad[pad_x - 1, pad_y - 1]
+                multiplier = np.tan((np.pi / 2) - (d_angle[x, y] + np.pi))
+
+                value_1 = right + multiplier * (bottom_right - right)
+                value_2 = left + multiplier * (top_left - left)
             elif (90 < d_angle_value <= 135):
-                value_1 = np.tan(d_angle[x, y] - (np.pi / 2)) * (d_mag_pad[pad_x - 1, pad_y + 1] - d_mag_pad[pad_x, pad_y + 1]) + d_mag_pad[pad_x, pad_y + 1]
-                value_2 = np.tan(d_angle[x, y] - (np.pi / 2)) * (d_mag_pad[pad_x + 1, pad_y - 1] - d_mag_pad[pad_x, pad_y - 1]) + d_mag_pad[pad_x, pad_y - 1]
+                multiplier = np.tan(d_angle[x, y] - (np.pi / 2))
+
+                value_1 = right + multiplier * (top_right - right)
+                value_2 = left + multiplier * (bottom_left - left)
             elif (-45 >= d_angle_value > -90):
-                value_1 = np.tan(d_angle[x, y] + (np.pi / 2)) * (d_mag_pad[pad_x - 1, pad_y + 1] - d_mag_pad[pad_x, pad_y + 1]) + d_mag_pad[pad_x, pad_y + 1]
-                value_2 = np.tan(d_angle[x, y] + (np.pi / 2)) * (d_mag_pad[pad_x + 1, pad_y - 1] - d_mag_pad[pad_x, pad_y - 1]) + d_mag_pad[pad_x, pad_y - 1]
+                multiplier = np.tan(d_angle[x, y] + (np.pi / 2))
+
+                value_1 = right + multiplier * (top_right - right)
+                value_2 = left + multiplier * (bottom_left - left)
             elif (135 < d_angle_value <= 180):
-                    value_1 = np.tan(np.pi - d_angle[x, y]) * (d_mag_pad[pad_x - 1, pad_y + 1] - d_mag_pad[pad_x - 1, pad_y]) + d_mag_pad[pad_x - 1, pad_y]
-                    value_2 = np.tan(np.pi - d_angle[x, y]) * (d_mag_pad[pad_x + 1, pad_y - 1] - d_mag_pad[pad_x + 1, pad_y]) + d_mag_pad[pad_x + 1, pad_y]
+                multiplier = np.tan(np.pi - d_angle[x, y])
+
+                value_1 = top + multiplier * (top_right - top)
+                value_2 = bottom + multiplier * (bottom_left - bottom)
             elif (0 >= d_angle_value > -45):
-                    value_1 = np.tan(-d_angle[x, y]) * (d_mag_pad[pad_x - 1, pad_y + 1] - d_mag_pad[pad_x - 1, pad_y]) + d_mag_pad[pad_x - 1, pad_y]
-                    value_2 = np.tan(-d_angle[x, y]) * (d_mag_pad[pad_x + 1, pad_y - 1] - d_mag_pad[pad_x + 1, pad_y]) + d_mag_pad[pad_x + 1, pad_y]
+                multiplier = np.tan(-d_angle[x, y])
+
+                value_1 = top + multiplier * (top_right - top)
+                value_2 = bottom + multiplier * (bottom_left - bottom)
             if value_1 < d_value and value_2 < d_value:
                 out[x, y] = 1
             else:
