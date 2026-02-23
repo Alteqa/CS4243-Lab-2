@@ -203,63 +203,9 @@ def estimate_gradients(original_img, display=True):
     return d_mag, d_angle
 
 # 3a IMPLEMENT
-# def non_maximum_suppression_interpol(d_mag, d_angle, display=True):
-#     '''
-#     Perform non-maximum suppression on the gradient magnitude matrix with interpolation.
-#     :param d_mag: gradient magnitudes matrix
-#     :param d_angle: gradient orientation matrix (in radian)
-#     :return out: non-maximum suppressed image
-#     '''
-
-#     out = np.zeros(d_mag.shape, d_mag.dtype)
-#     # Change angles to degrees to improve quality of life
-#     d_angle_180 = d_angle * 180/np.pi
-    
-#     # YOUR CODE HERE
-
-#     for x in range(d_mag.shape[0]):
-#         for y in range(d_mag.shape[1]):
-            
-
-#     # END
-#     if display:
-#         _ = plt.figure(figsize=(10,10))
-#         plt.imshow(out, cmap='gray')
-#         plt.title("Suppressed image (with interpolation)")
-    
-    return out
-
-# 3b IMPLEMENT
-def non_maximum_suppression(d_mag, d_angle, display=True):
+def non_maximum_suppression_interpol(d_mag, d_angle, display=True):
     '''
-    Perform non-maximum suppression on the gradient magnitude matrix without interpolation.
-    Split the range -180° ~ 180° into 8 even ranges. For each pixel, determine which range the gradient
-    orientation belongs to and pick the corresponding two pixels from the adjacent eight pixels surrounding 
-    that pixel. Keep the pixel if its value is larger than the other two.
-    Do note that the coordinate system is as below and angular measurements are counter-clockwise.
-
-    ----------→ y  
-    |
-    |
-    |
-    |        x X x
-    ↓ x       \|/   
-             x-o-x  
-              /|\    
-             x X x 
-         -22.5 0 22.5
-         
-    For instance, 
-        in the example above if the orientation at the coordinate of interest (x,y) is 20°, 
-            it belongs to the -22.5°~22.5° range, 
-            and the two pixels to be compared with are at (x+1,y) and (x-1,y) (aka the two big X's).
-        If the angle was instead 40°,
-            it belongs to the 22.5°-67.5° 
-            and the two pixels we need to consider will be (x+1, y+1) and (x-1,y-1)
-
-    There are only 4 sets of offsets: (0,1), (1,0), (1,1), and (1,-1), since to find the second pixel offset you just need 
-    to multiply the first tuple by -1.
-    
+    Perform non-maximum suppression on the gradient magnitude matrix with interpolation.
     :param d_mag: gradient magnitudes matrix
     :param d_angle: gradient orientation matrix (in radian)
     :return out: non-maximum suppressed image
@@ -268,7 +214,7 @@ def non_maximum_suppression(d_mag, d_angle, display=True):
     out = np.zeros(d_mag.shape, d_mag.dtype)
     # Change angles to degrees to improve quality of life
     d_angle_180 = d_angle * 180/np.pi
- 
+    
     # YOUR CODE HERE
     d_mag_pad = np.pad(d_angle, pad_width=1, mode='constant')
     multiplier_arr = np.tan(d_angle)
@@ -277,70 +223,94 @@ def non_maximum_suppression(d_mag, d_angle, display=True):
             pad_x = x + 1
             pad_y = y + 1
             d_value = d_mag[x, y]
-            match d_angle_180[x, y]:
-                case value if (0 < value <= 45):
-                    value_1 = np.tan(d_angle[x, y]) * (d_mag_pad[pad_x + 1, pad_y + 1] - d_mag_pad[pad_x + 1, pad_y]) + d_mag_pad[pad_x + 1, pad_y]
-                    value_2 = np.tan(d_angle[x, y]) * (d_mag_pad[pad_x - 1, pad_y - 1] - d_mag_pad[pad_x - 1, pad_y]) + d_mag_pad[pad_x - 1, pad_y]
-                    if value_1 < d_value and value_2 < d_value:
-                        out[x, y] = 1
-                    else:
-                        out[x, y] = 0
-                case value if (-135 >= value > -180):
-                    value_1 = np.tan(d_angle[x, y] + np.pi) * (d_mag_pad[pad_x + 1, pad_y + 1] - d_mag_pad[pad_x + 1, pad_y]) + d_mag_pad[pad_x + 1, pad_y]
-                    value_2 = np.tan(d_angle[x, y] + np.pi) * (d_mag_pad[pad_x - 1, pad_y - 1] - d_mag_pad[pad_x - 1, pad_y]) + d_mag_pad[pad_x - 1, pad_y]
-                    if value_1 < d_value and value_2 < d_value:
-                        out[x, y] = 1
-                    else:
-                        out[x, y] = 0
-                case value if (45 < value <= 90):
-                    value_1 = np.tan((np.pi / 2) - d_angle[x, y]) * (d_mag_pad[pad_x + 1, pad_y + 1]) - d_mag_pad[pad_x, pad_y + 1] + d_mag_pad[pad_x, pad_y + 1]
-                    value_2 = np.tan((np.pi / 2) - d_angle[x, y]) * (d_mag_pad[pad_x - 1, pad_y - 1]) - d_mag_pad[pad_x, pad_y - 1] + d_mag_pad[pad_x, pad_y - 1]
-                    if value_1 < d_value and value_2 < d_value:
-                        out[x, y] = 1
-                    else:
-                        out[x, y] = 0
-                case value if (-90 <= value < -135):
-                    value_1 = np.tan((np.pi / 2) - (d_angle[x, y] + np.pi)) * (d_mag_pad[pad_x, pad_y + 1] - d_mag_pad[pad_x + 1, pad_y + 1]) + d_mag_pad[pad_x + 1, pad_y + 1]
-                    value_2 = np.tan((np.pi / 2) - (d_angle[x, y] + np.pi)) * (d_mag_pad[pad_x, pad_y - 1] - d_mag_pad[pad_x - 1, pad_y - 1]) + d_mag_pad[pad_x - 1, pad_y - 1]
-                    if value_1 < d_value and value_2 < d_value:
-                        out[x, y] = 1
-                    else:
-                        out[x, y] = 0
-                case value if (90 < value <= 135):
-                    value_1 = np.tan(d_angle[x, y] - (np.pi / 2)) * (d_mag_pad[pad_x - 1, pad_y + 1] - d_mag_pad[pad_x, pad_y + 1]) + d_mag_pad[pad_x, pad_y + 1]
-                    value_2 = np.tan(d_angle[x, y] - (np.pi / 2)) * (d_mag_pad[pad_x + 1, pad_y - 1] - d_mag_pad[pad_x, pad_y - 1]) + d_mag_pad[pad_x, pad_y - 1]
-                    if value_1 < d_value and value_2 < d_value:
-                        out[x, y] = 1
-                    else:
-                        out[x, y] = 0
-                case value if (-45 >= value > -90):
-                    value_1 = np.tan(d_angle[x, y] + (np.pi / 2)) * (d_mag_pad[pad_x - 1, pad_y + 1] - d_mag_pad[pad_x, pad_y + 1]) + d_mag_pad[pad_x, pad_y + 1]
-                    value_2 = np.tan(d_angle[x, y] + (np.pi / 2)) * (d_mag_pad[pad_x + 1, pad_y - 1] - d_mag_pad[pad_x, pad_y - 1]) + d_mag_pad[pad_x, pad_y - 1]
-                    if value_1 < d_value and value_2 < d_value:
-                        out[x, y] = 1
-                    else:
-                        out[x, y] = 0
-                case value if (135 < value <= 180):
+            d_angle_value = d_angle_180[x, y]
+            value_1 = 0
+            value_2 = 0
+            if (0 < d_angle_value <= 45):
+                value_1 = np.tan(d_angle[x, y]) * (d_mag_pad[pad_x + 1, pad_y + 1] - d_mag_pad[pad_x + 1, pad_y]) + d_mag_pad[pad_x + 1, pad_y]
+                value_2 = np.tan(d_angle[x, y]) * (d_mag_pad[pad_x - 1, pad_y - 1] - d_mag_pad[pad_x - 1, pad_y]) + d_mag_pad[pad_x - 1, pad_y]
+            elif (-135 >= d_angle_value > -180):
+                value_1 = np.tan(d_angle[x, y] + np.pi) * (d_mag_pad[pad_x + 1, pad_y + 1] - d_mag_pad[pad_x + 1, pad_y]) + d_mag_pad[pad_x + 1, pad_y]
+                value_2 = np.tan(d_angle[x, y] + np.pi) * (d_mag_pad[pad_x - 1, pad_y - 1] - d_mag_pad[pad_x - 1, pad_y]) + d_mag_pad[pad_x - 1, pad_y]
+            elif (45 < d_angle_value <= 90):
+                value_1 = np.tan((np.pi / 2) - d_angle[x, y]) * (d_mag_pad[pad_x + 1, pad_y + 1]) - d_mag_pad[pad_x, pad_y + 1] + d_mag_pad[pad_x, pad_y + 1]
+                value_2 = np.tan((np.pi / 2) - d_angle[x, y]) * (d_mag_pad[pad_x - 1, pad_y - 1]) - d_mag_pad[pad_x, pad_y - 1] + d_mag_pad[pad_x, pad_y - 1]
+            elif (-90 >= d_angle_value > -135):
+                value_1 = np.tan((np.pi / 2) - (d_angle[x, y] + np.pi)) * (d_mag_pad[pad_x, pad_y + 1] - d_mag_pad[pad_x + 1, pad_y + 1]) + d_mag_pad[pad_x + 1, pad_y + 1]
+                value_2 = np.tan((np.pi / 2) - (d_angle[x, y] + np.pi)) * (d_mag_pad[pad_x, pad_y - 1] - d_mag_pad[pad_x - 1, pad_y - 1]) + d_mag_pad[pad_x - 1, pad_y - 1]
+            elif (90 < d_angle_value <= 135):
+                value_1 = np.tan(d_angle[x, y] - (np.pi / 2)) * (d_mag_pad[pad_x - 1, pad_y + 1] - d_mag_pad[pad_x, pad_y + 1]) + d_mag_pad[pad_x, pad_y + 1]
+                value_2 = np.tan(d_angle[x, y] - (np.pi / 2)) * (d_mag_pad[pad_x + 1, pad_y - 1] - d_mag_pad[pad_x, pad_y - 1]) + d_mag_pad[pad_x, pad_y - 1]
+            elif (-45 >= d_angle_value > -90):
+                value_1 = np.tan(d_angle[x, y] + (np.pi / 2)) * (d_mag_pad[pad_x - 1, pad_y + 1] - d_mag_pad[pad_x, pad_y + 1]) + d_mag_pad[pad_x, pad_y + 1]
+                value_2 = np.tan(d_angle[x, y] + (np.pi / 2)) * (d_mag_pad[pad_x + 1, pad_y - 1] - d_mag_pad[pad_x, pad_y - 1]) + d_mag_pad[pad_x, pad_y - 1]
+            elif (135 < d_angle_value <= 180):
                     value_1 = np.tan(np.pi - d_angle[x, y]) * (d_mag_pad[pad_x - 1, pad_y + 1] - d_mag_pad[pad_x - 1, pad_y]) + d_mag_pad[pad_x - 1, pad_y]
                     value_2 = np.tan(np.pi - d_angle[x, y]) * (d_mag_pad[pad_x + 1, pad_y - 1] - d_mag_pad[pad_x + 1, pad_y]) + d_mag_pad[pad_x + 1, pad_y]
-                    if value_1 < d_value and value_2 < d_value:
-                        out[x, y] = 1
-                    else:
-                        out[x, y] = 0
-                case value if (0 >= value > -45):
+            elif (0 >= d_angle_value > -45):
                     value_1 = np.tan(-d_angle[x, y]) * (d_mag_pad[pad_x - 1, pad_y + 1] - d_mag_pad[pad_x - 1, pad_y]) + d_mag_pad[pad_x - 1, pad_y]
                     value_2 = np.tan(-d_angle[x, y]) * (d_mag_pad[pad_x + 1, pad_y - 1] - d_mag_pad[pad_x + 1, pad_y]) + d_mag_pad[pad_x + 1, pad_y]
-                    if value_1 < d_value and value_2 < d_value:
-                        out[x, y] = 1
-                    else:
-                        out[x, y] = 0
+            if value_1 < d_value and value_2 < d_value:
+                out[x, y] = 1
+            else:
+                out[x, y] = 0
     # END
     if display:
         _ = plt.figure(figsize=(10,10))
-        plt.imshow(out)
-        plt.title("Suppressed image (without interpolation)")
+        plt.imshow(out, cmap='gray')
+        plt.title("Suppressed image (with interpolation)")
     
     return out
+
+# 3b IMPLEMENT
+# def non_maximum_suppression(d_mag, d_angle, display=True):
+#     '''
+#     Perform non-maximum suppression on the gradient magnitude matrix without interpolation.
+#     Split the range -180° ~ 180° into 8 even ranges. For each pixel, determine which range the gradient
+#     orientation belongs to and pick the corresponding two pixels from the adjacent eight pixels surrounding 
+#     that pixel. Keep the pixel if its value is larger than the other two.
+#     Do note that the coordinate system is as below and angular measurements are counter-clockwise.
+
+#     ----------→ y  
+#     |
+#     |
+#     |
+#     |        x X x
+#     ↓ x       \|/   
+#              x-o-x  
+#               /|\    
+#              x X x 
+#          -22.5 0 22.5
+         
+#     For instance, 
+#         in the example above if the orientation at the coordinate of interest (x,y) is 20°, 
+#             it belongs to the -22.5°~22.5° range, 
+#             and the two pixels to be compared with are at (x+1,y) and (x-1,y) (aka the two big X's).
+#         If the angle was instead 40°,
+#             it belongs to the 22.5°-67.5° 
+#             and the two pixels we need to consider will be (x+1, y+1) and (x-1,y-1)
+
+#     There are only 4 sets of offsets: (0,1), (1,0), (1,1), and (1,-1), since to find the second pixel offset you just need 
+#     to multiply the first tuple by -1.
+    
+#     :param d_mag: gradient magnitudes matrix
+#     :param d_angle: gradient orientation matrix (in radian)
+#     :return out: non-maximum suppressed image
+#     '''
+
+#     out = np.zeros(d_mag.shape, d_mag.dtype)
+#     # Change angles to degrees to improve quality of life
+#     d_angle_180 = d_angle * 180/np.pi
+ 
+#     # YOUR CODE HERE
+    
+#     # END
+#     if display:
+#         _ = plt.figure(figsize=(10,10))
+#         plt.imshow(out)
+#         plt.title("Suppressed image (without interpolation)")
+    
+#     return out
 
 
 
