@@ -216,12 +216,12 @@ def non_maximum_suppression_interpol(d_mag, d_angle, display=True):
     d_angle_180 = d_angle * 180/np.pi
     
     # YOUR CODE HERE
-    d_mag_pad = np.pad(d_angle, pad_width=1, mode='constant')
+    d_mag_pad = np.pad(d_mag, pad_width=1, mode='constant')
     for x in range(d_mag.shape[0]):
         for y in range(d_mag.shape[1]):
             pad_x = x + 1
             pad_y = y + 1
-            d_value = d_mag[x, y]
+            
             d_angle_value = d_angle_180[x, y]
             value_1 = 0
             value_2 = 0
@@ -275,7 +275,7 @@ def non_maximum_suppression_interpol(d_mag, d_angle, display=True):
 
                 value_1 = top + multiplier * (top_right - top)
                 value_2 = bottom + multiplier * (bottom_left - bottom)
-            if value_1 < d_value and value_2 < d_value:
+            if value_1 < d_mag[x, y] and value_2 < d_mag[x, y]:
                 out[x, y] = 1
             else:
                 out[x, y] = 0
@@ -288,54 +288,89 @@ def non_maximum_suppression_interpol(d_mag, d_angle, display=True):
     return out
 
 # 3b IMPLEMENT
-# def non_maximum_suppression(d_mag, d_angle, display=True):
-#     '''
-#     Perform non-maximum suppression on the gradient magnitude matrix without interpolation.
-#     Split the range -180° ~ 180° into 8 even ranges. For each pixel, determine which range the gradient
-#     orientation belongs to and pick the corresponding two pixels from the adjacent eight pixels surrounding 
-#     that pixel. Keep the pixel if its value is larger than the other two.
-#     Do note that the coordinate system is as below and angular measurements are counter-clockwise.
+def non_maximum_suppression(d_mag, d_angle, display=True):
+    '''
+    Perform non-maximum suppression on the gradient magnitude matrix without interpolation.
+    Split the range -180° ~ 180° into 8 even ranges. For each pixel, determine which range the gradient
+    orientation belongs to and pick the corresponding two pixels from the adjacent eight pixels surrounding 
+    that pixel. Keep the pixel if its value is larger than the other two.
+    Do note that the coordinate system is as below and angular measurements are counter-clockwise.
 
-#     ----------→ y  
-#     |
-#     |
-#     |
-#     |        x X x
-#     ↓ x       \|/   
-#              x-o-x  
-#               /|\    
-#              x X x 
-#          -22.5 0 22.5
+    ----------→ y  
+    |
+    |
+    |
+    |        x X x
+    ↓ x       \|/   
+             x-o-x  
+              /|\    
+             x X x 
+         -22.5 0 22.5
          
-#     For instance, 
-#         in the example above if the orientation at the coordinate of interest (x,y) is 20°, 
-#             it belongs to the -22.5°~22.5° range, 
-#             and the two pixels to be compared with are at (x+1,y) and (x-1,y) (aka the two big X's).
-#         If the angle was instead 40°,
-#             it belongs to the 22.5°-67.5° 
-#             and the two pixels we need to consider will be (x+1, y+1) and (x-1,y-1)
+    For instance, 
+        in the example above if the orientation at the coordinate of interest (x,y) is 20°, 
+            it belongs to the -22.5°~22.5° range, 
+            and the two pixels to be compared with are at (x+1,y) and (x-1,y) (aka the two big X's).
+        If the angle was instead 40°,
+            it belongs to the 22.5°-67.5° 
+            and the two pixels we need to consider will be (x+1, y+1) and (x-1,y-1)
 
-#     There are only 4 sets of offsets: (0,1), (1,0), (1,1), and (1,-1), since to find the second pixel offset you just need 
-#     to multiply the first tuple by -1.
+    There are only 4 sets of offsets: (0,1), (1,0), (1,1), and (1,-1), since to find the second pixel offset you just need 
+    to multiply the first tuple by -1.
     
-#     :param d_mag: gradient magnitudes matrix
-#     :param d_angle: gradient orientation matrix (in radian)
-#     :return out: non-maximum suppressed image
-#     '''
+    :param d_mag: gradient magnitudes matrix
+    :param d_angle: gradient orientation matrix (in radian)
+    :return out: non-maximum suppressed image
+    '''
 
-#     out = np.zeros(d_mag.shape, d_mag.dtype)
-#     # Change angles to degrees to improve quality of life
-#     d_angle_180 = d_angle * 180/np.pi
+    out = np.zeros(d_mag.shape, d_mag.dtype)
+    # Change angles to degrees to improve quality of life
+    d_angle_180 = d_angle * 180/np.pi
  
-#     # YOUR CODE HERE
+    # YOUR CODE HERE
+    d_mag_pad = np.pad(d_mag, pad_width=1, mode='constant')
+    for x in range(d_mag.shape[0]):
+        for y in range(d_mag.shape[1]):
+            
+            pad_x = x + 1
+            pad_y = y + 1
+            
+            d_angle_value = d_angle_180[x, y]
+            value_1 = 0
+            value_2 = 0
+
+            bottom = d_mag_pad[pad_x + 1, pad_y]
+            bottom_right = d_mag_pad[pad_x + 1, pad_y + 1]
+            right = d_mag_pad[pad_x, pad_y + 1]
+            top_right = d_mag_pad[pad_x - 1, pad_y + 1]
+            top = d_mag_pad[pad_x - 1, pad_y]
+            top_left = d_mag_pad[pad_x - 1, pad_y - 1]
+            left = d_mag_pad[pad_x, pad_y - 1]
+            bottom_left = d_mag_pad[pad_x + 1, pad_y - 1]
+
+            if (-22.5 < d_angle_value <= 22.5) or (157.5 < d_angle_value <= -157.5):
+                value_1 = bottom
+                value_2 = top
+            elif (22.5 < d_angle_value <= 67.5) or (-157.5 < d_angle_value <= -112.5):
+                value_1 = bottom_right
+                value_2 = top_left
+            elif (67.5 < d_angle_value <= 90) or (-112.5 < d_angle_value <= -67.5):
+                value_1 = right
+                value_2 = left
+            elif (112.5 < d_angle_value <= 157.5) or (-67.5 < d_angle_value <= -22.5):
+                value_1 = top_right
+                value_2 = bottom_left
+            if value_1 < d_mag[x, y] and value_2 < d_mag[x, y]:
+                out[x, y] = 1
+            else:
+                out[x, y] = 0
+    # END
+    if display:
+        _ = plt.figure(figsize=(10,10))
+        plt.imshow(out)
+        plt.title("Suppressed image (without interpolation)")
     
-#     # END
-#     if display:
-#         _ = plt.figure(figsize=(10,10))
-#         plt.imshow(out)
-#         plt.title("Suppressed image (without interpolation)")
-    
-#     return out
+    return out
 
 
 
