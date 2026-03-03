@@ -276,7 +276,7 @@ def non_maximum_suppression_interpol(d_mag, d_angle, display=True):
                 value_1 = top + multiplier * (top_right - top)
                 value_2 = bottom + multiplier * (bottom_left - bottom)
             if value_1 < d_mag[x, y] and value_2 < d_mag[x, y]:
-                out[x, y] = 1
+                out[x, y] = d_mag[x, y]
             else:
                 out[x, y] = 0
     # END
@@ -331,7 +331,7 @@ def non_maximum_suppression(d_mag, d_angle, display=True):
     d_mag_pad = np.pad(d_mag, pad_width=1, mode='constant')
     for x in range(d_mag.shape[0]):
         for y in range(d_mag.shape[1]):
-            
+
             pad_x = x + 1
             pad_y = y + 1
             
@@ -361,7 +361,7 @@ def non_maximum_suppression(d_mag, d_angle, display=True):
                 value_1 = top_right
                 value_2 = bottom_left
             if value_1 < d_mag[x, y] and value_2 < d_mag[x, y]:
-                out[x, y] = 1
+                out[x, y] = d_mag[x, y]
             else:
                 out[x, y] = 0
     # END
@@ -393,7 +393,13 @@ def double_thresholding(inp, perc_weak=0.1, perc_strong=0.3, display=True):
     weak_edges = strong_edges = None
     
     # YOUR CODE HERE
-    
+    min = np.min(inp)
+    max = np.max(inp)
+    range = max - min
+    Th = min + perc_strong * range
+    Tl = min + perc_weak * range
+    strong_edges = np.where(inp > Th, 1, 0)
+    weak_edges = np.where((inp > Tl) & (Th > inp), 1, 0)
     # END
     
     if display:
@@ -433,11 +439,24 @@ def edge_linking(weak, strong, n=200, display=True):
     out = None
     
     # YOUR CODE HERE
-    
+    x, y = np.shape(strong)
+    arr_pad = np.pad(strong, 1, mode='constant')
+    b = arr_pad[2:2 + x, 1:-1]
+    br = arr_pad[2:2 + x, 2:2 + y]
+    r = arr_pad[1:-1, 2:2 + y]
+    tr = arr_pad[0:-2, 2:2 + y]
+    t = arr_pad[0:-2, 1:-1]
+    tl = arr_pad[0:-2, 0:-2]
+    l  = arr_pad[1:-1, 0:-2]
+    bl = arr_pad[2:2 + x, 0:-2]
+    sum_arr = b + br + r + tr + t + tl + l + bl
+    weak_sum = np.where(sum_arr > 0, 1, 0) + weak
+    for i in range(n):
+        out = np.where(weak_sum > 1, 1, 0)
     # END
     if display:
         _ = plt.figure(figsize=(10,10))
-        plt.imshow(s)
+        plt.imshow(out)
         plt.title("Edge image")
     return out
 
