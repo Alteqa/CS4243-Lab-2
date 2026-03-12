@@ -226,6 +226,7 @@ def non_maximum_suppression_interpol(d_mag, d_angle, display=True):
             value_1 = 0
             value_2 = 0
 
+            #offsets
             bottom = d_mag_pad[pad_x + 1, pad_y]
             bottom_right = d_mag_pad[pad_x + 1, pad_y + 1]
             right = d_mag_pad[pad_x, pad_y + 1]
@@ -336,6 +337,7 @@ def non_maximum_suppression(d_mag, d_angle, display=True):
             pad_y = y + 1
             
             d_angle_value = d_angle_180[x, y]
+            value_0 = d_mag_pad[pad_x, pad_y]
             value_1 = 0
             value_2 = 0
 
@@ -348,20 +350,20 @@ def non_maximum_suppression(d_mag, d_angle, display=True):
             left = d_mag_pad[pad_x, pad_y - 1]
             bottom_left = d_mag_pad[pad_x + 1, pad_y - 1]
 
-            if (-22.5 < d_angle_value <= 22.5) or (157.5 < d_angle_value <= -157.5):
+            if (-22.5 <= d_angle_value < 22.5) or (157.5 <= d_angle_value < -157.5):
                 value_1 = bottom
                 value_2 = top
-            elif (22.5 < d_angle_value <= 67.5) or (-157.5 < d_angle_value <= -112.5):
+            elif (22.5 <= d_angle_value < 67.5) or (-157.5 <= d_angle_value < -112.5):
                 value_1 = bottom_right
                 value_2 = top_left
-            elif (67.5 < d_angle_value <= 90) or (-112.5 < d_angle_value <= -67.5):
+            elif (67.5 <= d_angle_value < 112.5) or (-112.5 <= d_angle_value < -67.5):
                 value_1 = right
                 value_2 = left
-            elif (112.5 < d_angle_value <= 157.5) or (-67.5 < d_angle_value <= -22.5):
+            elif (112.5 <= d_angle_value < 157.5) or (-67.5 <= d_angle_value < -22.5):
                 value_1 = top_right
                 value_2 = bottom_left
-            if value_1 < d_mag[x, y] and value_2 < d_mag[x, y]:
-                out[x, y] = d_mag[x, y]
+            if (value_1 < value_0) and (value_2 < value_0):
+                out[x, y] = value_0
             else:
                 out[x, y] = 0
     # END
@@ -439,20 +441,25 @@ def edge_linking(weak, strong, n=200, display=True):
     out = None
     
     # YOUR CODE HERE
-    x, y = np.shape(strong)
-    arr_pad = np.pad(strong, 1, mode='constant')
-    b = arr_pad[2:2 + x, 1:-1]
-    br = arr_pad[2:2 + x, 2:2 + y]
-    r = arr_pad[1:-1, 2:2 + y]
-    tr = arr_pad[0:-2, 2:2 + y]
-    t = arr_pad[0:-2, 1:-1]
-    tl = arr_pad[0:-2, 0:-2]
-    l  = arr_pad[1:-1, 0:-2]
-    bl = arr_pad[2:2 + x, 0:-2]
-    sum_arr = b + br + r + tr + t + tl + l + bl
-    weak_sum = np.where(sum_arr > 0, 1, 0) + weak
+    out = strong.copy()
+    weak_copy = weak.copy()
     for i in range(n):
-        out = np.where(weak_sum > 1, 1, 0)
+        x, y = np.shape(out)
+        arr_pad = np.pad(out, 1, mode='constant')
+        b = arr_pad[2:2 + x, 1:-1]
+        br = arr_pad[2:2 + x, 2:2 + y]
+        r = arr_pad[1:-1, 2:2 + y]
+        tr = arr_pad[0:-2, 2:2 + y]
+        t = arr_pad[0:-2, 1:-1]
+        tl = arr_pad[0:-2, 0:-2]
+        l  = arr_pad[1:-1, 0:-2]
+        bl = arr_pad[2:2 + x, 0:-2]
+        sum_arr = b + br + r + tr + t + tl + l + bl
+        sum = np.where(sum_arr > 0, 1, 0) + weak_copy
+        sum_output = np.where(sum > 1, 1, 0) 
+        out = sum_output + out
+        weak_copy = weak_copy - sum_output
+
     # END
     if display:
         _ = plt.figure(figsize=(10,10))
@@ -469,11 +476,36 @@ def hough_vote_lines(img):
     Beware of our coordinate convention.
     :param img: edge image
     :return A: accumulator array
-    :return distances: distance values array
-    :return thetas: theta values array
+    :return distances: distance values array used to map the index values of distances in A to the actual distance values on the image
+    :return thetas: theta values array used to map the index values of theta in A to the exact angles on the actual image
     '''
     # YOUR CODE HERE
+    d = np.round(np.sqrt((img.shape[0] / 2) ** 2 + (img.shape[1] / 2) ** 2))
+    
+    r_interval = 1
+    t_interval = np.pi / 180
 
+    r_range = int(2 * d / r_interval)
+    t_range = int(np.pi / t_interval)
+
+    distances = np.zeros(r_range)
+    thetas = np.zeros(t_range)
+
+    A = np.zeros((r_range, t_range))
+
+    for r in range(len(distances)):
+        distances[r] = r * r_interval - d
+    for t in range(len(thetas)):
+        thetas[t] = t * t_interval
+
+    for x in range(img.shape[0]):
+        for y in range(img.shape[1]):
+            if img[x, y] > 0:
+                distance_arr = np.round(x * np.cos(thetas) + y * np.sin(thetas))
+                index_arr = (np.round((distance_arr + d) / r_interval)).astype(int)
+                for i in range(len(index_arr)):
+                    if index_arr[i] < A.shape[0]:
+                        A[index_arr[i], i] += 1
     # END
             
     return A, distances, thetas
@@ -491,9 +523,9 @@ def find_peak_params(hspace, params_list,  window_size=1, threshold=0.5):
     e.g.
     Suppose for a line detection case, you get the following output:
     [
-    [122, 101, 93],
-    [3,   40,  21],
-    [0,   1.603, 1.605]
+    [122, 101, 93], peak values indexed by position in the array
+    [3,   40,  21], peak distances
+    [0,   1.603, 1.605] peak angles
     ]
     This means that the local maxima with the highest vote gets a vote score of 122, and the corresponding parameter value is distance=3, 
     theta = 0.
@@ -559,7 +591,38 @@ def hough_vote_circles(img, radius = None):
         
         #3.3 For each edge point:
         #    Center the mask over that point and update the accumulator array
+    diagonal = np.sqrt((img.shape[0]) ** 2 + (img.shape[1]) ** 2)
+    
+    a_interval = 1
+    b_interval = 1
+    r_interval = 1
 
+    h_range_binned = int(h / a_interval)
+    w_range_binned = int(w / b_interval)
+    r_range_binned = int((R_max - R_min) / r_interval)
+
+    A = np.zeros((r_range_binned, h_range_binned, w_range_binned))
+    R = np.zeros(r_range_binned)
+    X = np.zeros(h_range_binned)
+    Y = np.zeros(w_range_binned)
+
+    for item_R in range(len(R)):
+        R[item_R] = item_R * r_interval + R_min / r_interval
+    for item_X in range(len(X)):
+        X[item_X] = item_X * a_interval
+    for item_Y in range(len(Y)):
+        Y[item_Y] = item_Y * b_interval
+
+    offset = len(R) + int(np.ceil(R_max / r_interval))
+    A_pad = np.pad(A, pad_width=((0, 0), (offset, offset), (offset, offset)), mode='constant')
+
+    for x in range(len(X)):
+        for y in range(len(Y)):
+            if img[x, y] > 0:
+                for r in range(len(R)):
+                    mask_x, mask_y = circle_perimeter(x, y, int(R[r]))
+                    A_pad[r, mask_x + offset, mask_y + offset] += 1
+    A = A_pad[:, offset:h + offset, offset: w + offset]
     # END
    
     return A, R, X, Y
@@ -594,7 +657,45 @@ def hough_vote_circles_grad(img, d_angle, radius = None):
         [R_min,R_max] = radius
     
     # YOUR CODE HERE
+    diagonal = np.sqrt((img.shape[0]) ** 2 + (img.shape[1]) ** 2)
+    
+    a_interval = 1
+    b_interval = 1
+    r_interval = 1
 
+    h_range_binned = int(h / a_interval)
+    w_range_binned = int(w / b_interval)
+    r_range_binned = int((R_max - R_min) / r_interval)
+
+    A = np.zeros((r_range_binned, h_range_binned, w_range_binned))
+    R = np.zeros(r_range_binned)
+    X = np.zeros(h_range_binned)
+    Y = np.zeros(w_range_binned)
+
+    for item_R in range(len(R)):
+        R[item_R] = item_R * r_interval + R_min / r_interval
+    for item_X in range(len(X)):
+        X[item_X] = item_X * a_interval
+    for item_Y in range(len(Y)):
+        Y[item_Y] = item_Y * b_interval
+
+    offset = len(R) + int(np.ceil(R_max / r_interval))
+    A_pad = np.pad(A, pad_width=((0, 0), (offset, offset), (offset, offset)), mode='constant')
+
+    
+    for x in range(len(X)):
+        for y in range(len(Y)):
+            if img[x, y] > 0:
+                for r in range(len(R)):
+                    cos = R[r] * np.cos(d_angle[x, y])
+                    sin = R[r] * np.sin(d_angle[x, y])
+                    a1 = int(np.round(x + cos))
+                    b1 = int(np.round(y + sin))
+                    a2 = int(np.round(x - cos))
+                    b2 = int(np.round(y - sin))
+                    A_pad[r, a1 + offset, b1 + offset] += 1
+                    A_pad[r, a2 + offset, b2 + offset] += 1
+    A = A_pad[:, offset:h + offset, offset: w + offset]
     # END
     return A, R, X, Y
 
@@ -638,7 +739,7 @@ def draw_lines(hspace, dists, thetas, hs_maxima, file_path):
 
     # You may want to change the codes below if you use a different axis choice.
     for _, dist, angle in zip(*hs_maxima):
-        (x0, y0) = dist * np.array([np.cos(angle), np.sin(angle)])
+        (x0, y0) = dist * np.array([np.cos(angle), np.sin(angle)]) #turn peak coordinates into lines
         ax[2].axline((y0, x0), slope=np.tan(np.pi-angle))
 
     plt.tight_layout()
